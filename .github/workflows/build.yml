@@ -1,0 +1,52 @@
+name: Build WS Gestão APK
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Descompactar projeto
+        run: |
+          ZIP=$(find . -maxdepth 1 -type f -name '*.zip' | head -n 1)
+          mkdir -p app
+          unzip -q "$ZIP" -d app
+
+      - name: Encontrar projeto Flutter
+        id: project
+        run: |
+          PROJECT=$(find app -name pubspec.yaml -print -quit)
+          DIR=$(dirname "$PROJECT")
+          echo "dir=$DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Configurar Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Instalar dependências
+        working-directory: ${{ steps.project.outputs.dir }}
+        run: flutter pub get
+
+      - name: Compilar APK
+        working-directory: ${{ steps.project.outputs.dir }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          flutter build apk --release \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+
+      - name: Guardar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: WS-Gestao-APK
+          path: ${{ steps.project.outputs.dir }}/build/app/outputs/flutter-apk/app-release.apk
