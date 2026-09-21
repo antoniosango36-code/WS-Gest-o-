@@ -1,8 +1,6 @@
 name: Build WS Gestão APK
 
 on:
-  push:
-    branches: ["**"]
   workflow_dispatch:
 
 jobs:
@@ -19,17 +17,22 @@ jobs:
           mkdir -p app
           unzip -q "$ZIP" -d app
 
-      - name: Encontrar projeto Flutter
-        id: project
+      - name: Localizar projeto Flutter
         run: |
-          PROJECT=$(find app -name pubspec.yaml -print -quit)
-          DIR=$(dirname "$PROJECT")
-          echo "dir=$DIR" >> "$GITHUB_OUTPUT"
+          find app -name pubspec.yaml -print
+          find app -path '*/android/app/build.gradle' -print
 
       - name: Configurar Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+
+      - name: Encontrar projeto
+        id: project
+        run: |
+          PROJECT=$(find app -name pubspec.yaml -print -quit)
+          DIR=$(dirname "$PROJECT")
+          echo "dir=$DIR" >> "$GITHUB_OUTPUT"
 
       - name: Instalar dependências
         working-directory: ${{ steps.project.outputs.dir }}
@@ -41,6 +44,8 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
+          flutter clean
+          flutter pub get
           flutter build apk --release \
             --dart-define=SUPABASE_URL="$SUPABASE_URL" \
             --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
